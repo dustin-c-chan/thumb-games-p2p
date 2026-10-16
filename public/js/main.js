@@ -4,9 +4,10 @@ import chessClient from './games/chess.js';
 import hockeyClient from './games/hockey.js';
 import hoopsClient from './games/hoops.js';
 import golfClient from './games/golf.js';
+import pachinkoClient from './games/pachinko.js';
 import { startLocalMatch } from './local.js';
 
-const CLIENTS = { chess: chessClient, hockey: hockeyClient, hoops: hoopsClient, golf: golfClient };
+const CLIENTS = { chess: chessClient, hockey: hockeyClient, hoops: hoopsClient, golf: golfClient, pachinko: pachinkoClient };
 const VIEW_W = 400;
 const VIEW_H = 600;
 

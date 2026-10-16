@@ -6,6 +6,7 @@ import { legalMoves, applyMove, SIZE } from '../shared/games/chess.js';
 import { closestOnSegment } from '../shared/physics.js';
 import { flipperSegment, PUCK_R, FLIPPER_R } from '../shared/games/hockey.js';
 import { isStopped } from '../shared/games/golf.js';
+import { PADDLE_W, W as PW, BALL_R as PB, paddleY, toWorldX } from '../shared/games/pachinko.js';
 
 const rand = (lo, hi) => lo + Math.random() * (hi - lo);
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -67,28 +68,18 @@ function hockeyBot(seat) {
   };
 }
 
-// --- Hoops: find a scoring launch by simulation, then add some human error --------
+// --- Hoops: aim for the sweet spot of the launcher, with human-like timing error ---
+const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 0.5;
 function hoopsBot(seat) {
-  const game = GAMES.hoops;
-  let wait = rand(1.4, 2.2);
+  let wait = rand(0.9, 1.5);
   return (config, state, dt, input) => {
+    const lane = state.lanes[seat];
+    if (lane.rack <= 0 || lane.cool > 0) return;
     wait -= dt;
     if (wait > 0) return;
-    wait = rand(1.3, 2.1);
-    let launch = null;
-    for (let i = 0; i < 30 && !launch; i++) {
-      const vx = rand(350, 750), vy = rand(-1050, -600);
-      const sim = clone(state);
-      const lane = sim.lanes[seat];
-      lane.balls = []; lane.cool = 0; lane.score = 0;
-      game.input(config, sim, seat, { type: 'shoot', vx, vy });
-      for (let t = 0; t < 150 && !sim.over; t++) game.step(config, sim, 1 / 60);
-      if (lane.score > 0) launch = [vx, vy];
-    }
-    launch ??= [rand(400, 700), rand(-950, -650)];
-    const miss = Math.random() < 0.5;
-    const [vx, vy] = miss ? [launch[0] * rand(0.9, 1.1), launch[1] * rand(0.92, 1.08)] : launch;
-    input({ type: 'shoot', vx, vy });
+    wait = rand(0.5, 1.2);
+    const power = Math.min(1, Math.max(0.05, 0.765 + gauss() * 0.12));
+    input({ type: 'shoot', power });
   };
 }
 
@@ -121,5 +112,36 @@ function golfBot(seat) {
   };
 }
 
-const BOTS = { chess: chessBot, hockey: hockeyBot, hoops: hoopsBot, golf: golfBot };
+// --- Pachinko Pong: track the most urgent incoming ball, with reaction lag & error ---
+function pachinkoBot(seat) {
+  const py = paddleY(seat);
+  let think = 0;
+  let aimX = PW / 2;
+  return (config, state, dt, input) => {
+    think -= dt;
+    if (think > 0) return;
+    think = rand(0.1, 0.18); // reaction time
+    let best = null, bestT = Infinity;
+    for (const b of state.balls) {
+      const vy = seat === 0 ? b.vy : -b.vy;
+      if (vy <= 0) continue; // moving away
+      const tt = Math.abs(py - b.y) / Math.abs(b.vy);
+      if (tt < bestT) { bestT = tt; best = b; }
+    }
+    if (best) {
+      // Predict where it crosses the paddle line, folding in wall bounces (pins add chaos).
+      let x = best.x + best.vx * bestT;
+      const span = PW - 2 * PB;
+      x = ((x - PB) % (2 * span) + 2 * span) % (2 * span);
+      x = PB + (x > span ? 2 * span - x : x);
+      aimX = x + rand(-1, 1) * (PADDLE_W * 0.45) * Math.min(1, bestT);
+    } else {
+      aimX = PW / 2 + rand(-40, 40);
+    }
+    // Inputs are in the bot's own seat-local coordinates.
+    input({ type: 'paddle', x: toWorldX(seat, aimX) });
+  };
+}
+
+const BOTS = { chess: chessBot, hockey: hockeyBot, hoops: hoopsBot, golf: golfBot, pachinko: pachinkoBot };
 export const makeBot = (gameId, seat) => BOTS[gameId](seat);

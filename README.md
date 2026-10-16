@@ -9,8 +9,9 @@ head-to-head mini game. No sign up, no accounts — you get a random name like *
 | --- | --- | --- |
 | ♞ **Mini Chess** | Gardner 5×5 chess (K, Q, R, B, N + 5 pawns). Checkmate wins. 30 s per move or a random move is played for you. | Tap a piece, tap a square |
 | 🏒 **Pinball Hockey** | Each player defends a pinball drain with two flippers. Knock the puck between the opponent's flippers. First to 3. | Hold left / right half of the screen (or A/D, ←/→) |
-| 🏀 **Arcade Hoops** | Side-by-side carnival lanes. Most baskets in 45 s wins; hoops start moving after 20 s. | Flick from the ball toward the hoop (Space on desktop) |
-| ⛳ **Mini Golf** | A randomly generated hole, both players putting at the same time. Fewest strokes wins. | Drag back anywhere, release to putt |
+| 🏀 **Hot Shot Hoops** | Two tabletop arcade basketball machines side by side, in 3D perspective. 3 balls each roll back down the court to your launcher. Most baskets in 45 s wins. | Hold to charge the launcher, release to shoot |
+| ⛳ **Mini Golf** | A randomly generated island hole (rails, logs, bumpers, sand, water hazards), both players putting at the same time. Water costs a stroke. Fewest strokes wins. | Drag back anywhere, release to putt |
+| ✨ **Pachinko Pong** | Pong through a pachinko board: steel balls ricochet off pins while you guard your end with a paddle. Balls past your opponent score for you. First to 7. | Slide your finger left/right (or ←/→) |
 
 ## Run it
 
@@ -21,7 +22,7 @@ npm start          # http://localhost:3000
 
 Open it in two browser tabs (or on two phones on the same network) and press PLAY in both.
 
-- `?game=hockey` (or `chess`, `hoops`, `golf`) on the URL forces a game, handy while developing; both players need it.
+- `?game=hockey` (or `chess`, `hoops`, `golf`, `pachinko`) on the URL forces a game, handy while developing; both players need it.
 - `FORCE_GAME=golf npm start` forces a game server-wide.
 - `PORT=8080 npm start` changes the port. `/healthz` returns online and match counts.
 

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { GAMES } from '../public/shared/registry.js';
 import { makeRng } from '../public/shared/rng.js';
 import { legalMoves, inCheck } from '../public/shared/games/chess.js';
-import { START } from '../public/shared/games/hoops.js';
 
 const DT = 1 / 60;
 const run = (game, config, state, seconds, each) => {
@@ -97,27 +96,60 @@ test('hockey: a held flipper actually hits the puck', () => {
   assert.ok(state.puck.vy < -200, `puck launched upward (vy=${state.puck.vy})`);
 });
 
-test('hoops: some flick launches score baskets', () => {
+test('hoops: there is a launcher sweet spot, and weak or huge shots miss', () => {
   const g = GAMES.hoops;
-  let scored = 0;
-  for (let vx = 300; vx <= 800; vx += 25) {
-    for (let vy = -1100; vy <= -500; vy += 25) {
-      const { config, state } = g.create();
-      g.input(config, state, 0, { type: 'shoot', vx, vy });
-      run(g, config, state, 3);
-      scored += state.lanes[0].score;
-    }
-  }
-  assert.ok(scored > 5, `found ${scored} scoring launches from (${START.x},${START.y})`);
+  const scores = (power) => {
+    const { config, state } = g.create();
+    g.input(config, state, 0, { type: 'shoot', power });
+    run(g, config, state, 4);
+    return state.lanes[0].score;
+  };
+  let hits = 0;
+  for (let p = 0.7; p <= 0.83; p += 0.01) hits += scores(p);
+  assert.ok(hits >= 8, `sweet spot scored ${hits}/14`);
+  assert.equal(scores(0.3), 0);
+  assert.equal(scores(0.05), 0);
 });
 
-test('hoops: cooldown and ball limit are enforced, timer ends the game', () => {
+test('hoops: only 3 balls; they roll back to the launcher and can be shot again', () => {
   const g = GAMES.hoops;
   const { config, state } = g.create();
-  for (let i = 0; i < 10; i++) g.input(config, state, 1, { type: 'shoot', vx: 500, vy: -700 });
-  assert.equal(state.lanes[1].balls.length, 1);
+  for (let i = 0; i < 5; i++) {
+    g.input(config, state, 1, { type: 'shoot', power: 0.5 });
+    run(g, config, state, 0.3);
+  }
+  assert.equal(state.lanes[1].rack, 0);
+  assert.equal(state.lanes[1].balls.length, 3);
+  run(g, config, state, 4);
+  assert.equal(state.lanes[1].rack, 3, 'balls returned');
+  g.input(config, state, 1, { type: 'shoot', power: 2 }); // out of range: ignored
+  assert.equal(state.lanes[1].rack, 3);
   run(g, config, state, 46);
   assert.ok(state.over);
+});
+
+test('pachinko: balls keep coming, paddles defend, someone wins', () => {
+  const g = GAMES.pachinko;
+  const { config, state } = g.create(makeRng(8));
+  run(g, config, state, 120, () => {
+    for (const b of state.balls) assert.ok(Number.isFinite(b.x) && b.x >= 0 && b.x <= 400);
+  });
+  assert.ok(state.over, 'game ended');
+  assert.ok(Math.max(...state.score) > 0);
+});
+
+test('pachinko: a paddle in the right spot returns the ball', () => {
+  const g = GAMES.pachinko;
+  const { config, state } = g.create(makeRng(9));
+  state.spawnIn = 99;
+  state.balls = [{ id: 1, x: 120, y: 520, vx: 0, vy: 300, age: 0 }];
+  state.paddles[0] = state.targets[0] = 120;
+  run(g, config, state, 0.25); // long enough to reach the paddle, short of the pins above
+  assert.ok(state.balls[0].vy < 0, 'bounced back up');
+  assert.deepEqual(state.score, [0, 0]);
+  // Seat 1 sends seat-local x: 100 from its own view is world x 300.
+  g.input(config, state, 1, { type: 'paddle', x: 100 });
+  assert.equal(state.targets[1], 300);
 });
 
 test('golf: every generated hole is sinkable by a simple aim-at-cup bot', () => {
