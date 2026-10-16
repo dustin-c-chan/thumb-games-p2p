@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#12111a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Thumb Games</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="app">
+    <!-- Home: one button, no sign up. -->
+    <section id="home" class="screen active">
+      <div class="brand">
+        <div class="logo">👍</div>
+        <h1>Thumb Games</h1>
+        <p class="tag">Tap play. Get a random mini game. Beat a real person.</p>
+      </div>
+      <button id="play" class="big-btn" disabled>Connecting…</button>
+      <p class="you">You are <b id="my-name">…</b></p>
+      <ul class="game-list">
+        <li>♞ Mini Chess</li>
+        <li>🏒 Pinball Hockey</li>
+        <li>🏀 Arcade Hoops</li>
+        <li>⛳ Mini Golf</li>
+      </ul>
+      <p class="stats" id="stats"></p>
+    </section>
+
+    <!-- Waiting for an opponent. -->
+    <section id="search" class="screen">
+      <div class="spinner"></div>
+      <h2>Finding an opponent…</h2>
+      <p class="stats" id="search-stats"></p>
+      <p class="hint">Tip: open this page in a second tab or on a friend’s phone to test instantly.</p>
+      <button id="cancel" class="ghost-btn">Cancel</button>
+    </section>
+
+    <!-- In a match. -->
+    <section id="game" class="screen">
+      <header class="bar">
+        <button id="leave" class="ghost-btn small" title="Leave match">✕</button>
+        <div class="title" id="game-title"></div>
+        <div class="vs" id="vs"></div>
+      </header>
+      <div id="stage">
+        <canvas id="canvas"></canvas>
+        <div id="overlay" class="overlay hidden"></div>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
