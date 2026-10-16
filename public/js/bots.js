@@ -3,9 +3,9 @@
 // exactly like a remote player's inputs would arrive at the server.
 import { GAMES } from '../shared/registry.js';
 import { legalMoves, applyMove, SIZE } from '../shared/games/chess.js';
-import { closestOnSegment } from '../shared/physics.js';
-import { flipperSegment, PUCK_R, FLIPPER_R } from '../shared/games/hockey.js';
 import { isStopped } from '../shared/games/golf.js';
+import { total as bjTotal, legalActions as bjActions } from '../shared/games/blackjack.js';
+import { legalActions as bluffActions, cardValue } from '../shared/games/bluff.js';
 import { PADDLE_W, W as PW, BALL_R as PB, paddleY, toWorldX } from '../shared/games/pachinko.js';
 
 const rand = (lo, hi) => lo + Math.random() * (hi - lo);
@@ -36,35 +36,6 @@ function chessBot(seat) {
       if (score > bestScore) { bestScore = score; best = m; }
     }
     if (best) input({ type: 'move', from: best.from, to: best.to });
-  };
-}
-
-// --- Hockey: flip when the puck is close to a flipper -----------------------------
-function hockeyBot(seat) {
-  const hold = [0, 0];
-  const cooldown = [0, 0];
-  const down = [false, false];
-  return (config, state, dt, input) => {
-    const p = state.puck;
-    for (const side of [0, 1]) {
-      hold[side] -= dt;
-      cooldown[side] -= dt;
-      const seg = flipperSegment(seat, side, state.flippers[seat][side]);
-      const q = closestOnSegment(p.x, p.y, ...seg);
-      const dist = Math.hypot(p.x - q.x, p.y - q.y) - PUCK_R - FLIPPER_R;
-      if (!down[side] && cooldown[side] <= 0 && dist < 26 && q.t > 0.2) {
-        cooldown[side] = rand(0.35, 0.6);
-        if (Math.random() < 0.82) { // sometimes it just misses
-          hold[side] = rand(0.14, 0.24);
-          down[side] = true;
-          input({ type: 'flip', side, down: true });
-        }
-      }
-      if (down[side] && hold[side] <= 0) {
-        down[side] = false;
-        input({ type: 'flip', side, down: false });
-      }
-    }
   };
 }
 
@@ -143,7 +114,65 @@ function pachinkoBot(seat) {
   };
 }
 
+// --- Blackjack Duel: simple basic strategy as player, chase-the-total as dealer -------
+function blackjackBot(seat) {
+  let think = rand(0.8, 1.6), lastKey = '';
+  return (config, state, dt, input) => {
+    const acts = bjActions(state, seat);
+    if (!acts.length) return;
+    const key = `${state.hand}:${state.phase}:${state.cards.player.length}:${state.cards.dealer.length}`;
+    if (key !== lastKey) { lastKey = key; think = rand(0.8, 1.7); }
+    think -= dt;
+    if (think > 0) return;
+    think = 99;
+    if (state.phase === 'bet') return input({ type: 'bet', amount: [25, 50, 100][Math.floor(Math.random() * 3)] });
+    if (state.phase === 'player') {
+      const { sum, soft } = bjTotal(state.cards.player);
+      const up = state.cards.dealer.find((c) => !c.down);
+      const upVal = up ? (up.r === 1 ? 11 : Math.min(10, up.r)) : 10;
+      if (acts.includes('double') && (sum === 11 || (sum === 10 && upVal < 10))) return input({ type: 'double' });
+      return input({ type: sum < (soft ? 18 : upVal >= 7 ? 17 : 13) ? 'hit' : 'stand' });
+    }
+    // Dealer: you can see the player's total, so keep hitting until you're ahead.
+    const pt = bjTotal(state.cards.player).sum, d = bjTotal(state.cards.dealer).sum;
+    const hit = d < pt || (d === pt && d <= 16 && Math.random() < 0.5);
+    input({ type: hit ? 'hit' : 'stand' });
+  };
+}
+
+// --- Snap!: human-ish reaction time, the occasional jumpy false snap ----------------
+function snapBot(seat) {
+  let lastFlip = 0, reactIn = null;
+  return (config, state, dt, input) => {
+    if (state.flips !== lastFlip) {
+      lastFlip = state.flips;
+      reactIn = state.match ? rand(0.42, 0.95) : Math.random() < 0.03 ? rand(0.2, 0.5) : null;
+    }
+    if (reactIn == null) return;
+    reactIn -= dt;
+    if (reactIn <= 0) { reactIn = null; input({ type: 'snap' }); }
+  };
+}
+
+// --- Blind Bluff: read the card you can see (theirs), bluff now and then -------------
+function bluffBot(seat) {
+  let think = rand(1, 2), lastKey = '';
+  return (config, state, dt, input) => {
+    const acts = bluffActions(state, seat);
+    if (!acts.length) return;
+    const key = `${state.hand}:${state.actions.length}`;
+    if (key !== lastKey) { lastKey = key; think = rand(1.0, 2.2); }
+    think -= dt;
+    if (think > 0) return;
+    think = 99;
+    const theirs = cardValue(state.cards[1 - seat]);
+    const pHigher = (14 - theirs) / 12; // chance my unseen card beats theirs
+    if (acts.includes('bet')) return input({ type: pHigher > 0.6 || Math.random() < 0.2 ? 'bet' : 'check' });
+    input({ type: pHigher > 0.45 || Math.random() < 0.15 ? 'call' : 'fold' });
+  };
+}
+
 export const BOT_NAMES = ['Robo Otter', 'Circuit Panda', 'Byte Badger', 'Pixel Moose', 'Turbo Toaster', 'Sir Beeps', 'Glitch Gecko', 'Unit 7'];
 
-const BOTS = { chess: chessBot, hockey: hockeyBot, hoops: hoopsBot, golf: golfBot, pachinko: pachinkoBot };
+const BOTS = { blackjack: blackjackBot, snap: snapBot, bluff: bluffBot, chess: chessBot, hoops: hoopsBot, golf: golfBot, pachinko: pachinkoBot };
 export const makeBot = (gameId, seat) => BOTS[gameId](seat);

@@ -2,14 +2,16 @@
 // transitions and swipe gestures, canvas sizing, input routing and the render loop.
 import { GAMES } from '../shared/registry.js';
 import chessClient from './games/chess.js';
-import hockeyClient from './games/hockey.js';
 import hoopsClient from './games/hoops.js';
 import golfClient from './games/golf.js';
 import pachinkoClient from './games/pachinko.js';
+import blackjackClient from './games/blackjack.js';
+import snapClient from './games/snap.js';
+import bluffClient from './games/bluff.js';
 import { startLocalMatch } from './local.js';
 
-const CLIENTS = { chess: chessClient, hockey: hockeyClient, hoops: hoopsClient, golf: golfClient, pachinko: pachinkoClient };
-const ICONS = { chess: '♞', hockey: '🏒', hoops: '🏀', golf: '⛳', pachinko: '✨' };
+const CLIENTS = { chess: chessClient, hoops: hoopsClient, golf: golfClient, pachinko: pachinkoClient, blackjack: blackjackClient, snap: snapClient, bluff: bluffClient };
+const ICONS = { chess: '♞', hoops: '🏀', golf: '⛳', pachinko: '✨', blackjack: '🂡', snap: '⚡', bluff: '🃏' };
 const VIEW_W = 400;
 const VIEW_H = 600;
 const AUTO_NEXT_MS = 5000;
@@ -31,7 +33,7 @@ let autoNext = null;
 let reconnectDelay = 500;
 const record = { w: 0, l: 0 };
 const params = new URLSearchParams(location.search);
-// `?game=hockey` forces a specific game (handy for testing; both players need it).
+// `?game=blackjack` forces a specific game (handy for testing; both players need it).
 const wantGame = params.get('game');
 // Offline mode (no server, e.g. a static demo): every match is against the computer.
 const OFFLINE = !!window.THUMB_OFFLINE || params.has('offline');

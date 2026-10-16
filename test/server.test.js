@@ -30,7 +30,7 @@ function client() {
 
 test('the feed: bots when alone, humans first, forfeits on swipe/leave/disconnect', async (t) => {
   const proc = spawn(process.execPath, ['server.js'], {
-    env: { ...process.env, PORT: String(PORT), FORCE_GAME: 'hockey', SOLO_GRACE_MS: '150', HUMAN_GRACE_MS: '3000' },
+    env: { ...process.env, PORT: String(PORT), FORCE_GAME: 'pachinko', SOLO_GRACE_MS: '150', HUMAN_GRACE_MS: '3000' },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
   t.after(() => proc.kill());
@@ -47,7 +47,7 @@ test('the feed: bots when alone, humans first, forfeits on swipe/leave/disconnec
   assert.equal(m1.vsBot, true);
   assert.match(m1.names[1 - m1.seat], /🤖/);
   const st = await a.next('state', (m) => m.id === m1.id);
-  assert.ok(st.state.puck);
+  assert.ok(Array.isArray(st.state.balls));
 
   // Swiping mid-game moves on to a fresh match (no result screen for the skipped one).
   a.send({ type: 'next' });
@@ -72,7 +72,7 @@ test('the feed: bots when alone, humans first, forfeits on swipe/leave/disconnec
   assert.equal(mb.vsBot, false);
   assert.deepEqual([ma.seat, mb.seat].sort(), [0, 1]);
   await a.next('state', (m) => m.id === ma.id);
-  a.send({ type: 'input', input: { type: 'flip', side: 0, down: true } });
+  a.send({ type: 'input', input: { type: 'paddle', x: 120 } });
 
   // A swipes away mid-game: B wins.
   a.send({ type: 'next' });

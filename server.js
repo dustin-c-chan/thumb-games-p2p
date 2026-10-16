@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { GAMES, GAME_IDS } from './public/shared/registry.js';
 import { makeRng } from './public/shared/rng.js';
-import { snapshot, stateReplacer } from './public/shared/match.js';
+import { snapshot, stateReplacer, viewFor } from './public/shared/match.js';
 import { makeBot, BOT_NAMES } from './public/js/bots.js';
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -149,7 +149,7 @@ function startMatch(pair) {
   const match = {
     id: Math.random().toString(36).slice(2, 10), gameId, game, config, state, players, vsBot,
     bot: vsBot ? makeBot(gameId, botSeat) : null, botSeat,
-    timer: null, lastSent: '', running: false, ended: false,
+    timer: null, lastSent: ['', ''], running: false, ended: false,
   };
   matches.add(match);
   players.forEach((ws, seat) => {
@@ -159,9 +159,8 @@ function startMatch(pair) {
     ws.recentGames = [gameId, ...(ws.recentGames || [])].slice(0, 2);
   });
   const names = players.map((p) => p?.name ?? `${pick(BOT_NAMES)} 🤖`);
-  const initial = snapshot(state);
   players.forEach((ws, seat) =>
-    send(ws, { type: 'match', id: match.id, game: gameId, seat, names, config, state: initial, startsIn: countdown, vsBot }));
+    send(ws, { type: 'match', id: match.id, game: gameId, seat, names, config, state: snapshot(viewFor(game, state, seat)), startsIn: countdown, vsBot }));
   console.log(`[match ${match.id}] ${gameId}: ${names[0]} vs ${names[1]}`);
 
   match.timer = setTimeout(() => {
@@ -180,18 +179,22 @@ function startMatch(pair) {
 
 function tick(match, dt) {
   try {
-    if (match.bot) match.bot(match.config, match.state, dt, (msg) => match.game.input(match.config, match.state, match.botSeat, msg));
+    // Bots only get to see what a human in their seat would see.
+    if (match.bot) match.bot(match.config, viewFor(match.game, match.state, match.botSeat), dt, (msg) => match.game.input(match.config, match.state, match.botSeat, msg));
     match.game.step(match.config, match.state, dt);
   } catch (err) {
     console.error(`[match ${match.id}] step failed`, err);
     endMatch(match, null, 'Game error');
     return;
   }
-  const payload = `{"type":"state","id":"${match.id}","state":${JSON.stringify(match.state, stateReplacer)}}`;
-  if (payload !== match.lastSent) {
-    match.lastSent = payload;
-    for (const ws of match.players) send(ws, payload);
-  }
+  match.players.forEach((ws, seat) => {
+    if (!ws) return;
+    const payload = `{"type":"state","id":"${match.id}","state":${JSON.stringify(viewFor(match.game, match.state, seat), stateReplacer)}}`;
+    if (payload !== match.lastSent[seat]) {
+      match.lastSent[seat] = payload;
+      send(ws, payload);
+    }
+  });
   if (match.state.over) endMatch(match, match.state.over.winner, match.state.over.reason);
 }
 

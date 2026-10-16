@@ -8,3 +8,7 @@ export function stateReplacer(key, value) {
 }
 
 export const snapshot = (state) => JSON.parse(JSON.stringify(state, stateReplacer));
+
+// Card games hide information (your hole card, the deck order). A game may define
+// `view(state, seat)` returning only what that seat may see; everyone else sees it all.
+export const viewFor = (game, state, seat) => (game.view ? game.view(state, seat) : state);

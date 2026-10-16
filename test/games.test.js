@@ -70,32 +70,6 @@ test('chess: random self-play always terminates with a valid result', () => {
   }
 });
 
-test('hockey: random flipping produces goals and a winner, puck stays on the table', () => {
-  const g = GAMES.hockey;
-  const rng = makeRng(4);
-  const { config, state } = g.create(rng);
-  run(g, config, state, 600, () => {
-    if (rng() < 0.05) g.input(config, state, rng.int(0, 1), { type: 'flip', side: rng.int(0, 1), down: rng() < 0.5 });
-    const p = state.puck;
-    assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y));
-    assert.ok(p.x >= 0 && p.x <= 400);
-  });
-  assert.ok(state.over, 'someone reached 3 goals');
-  assert.equal(Math.max(...state.score), 3);
-});
-
-test('hockey: a held flipper actually hits the puck', () => {
-  const g = GAMES.hockey;
-  const { config, state } = g.create(makeRng(5));
-  // Park the puck on seat 0's resting left flipper and swing it.
-  state.serveIn = 0;
-  state.puck = { x: 150, y: 553, vx: 0, vy: 0 };
-  g.input(config, state, 0, { type: 'flip', side: 0, down: true });
-  g.step(config, state, DT);
-  g.step(config, state, DT);
-  assert.ok(state.puck.vy < -200, `puck launched upward (vy=${state.puck.vy})`);
-});
-
 test('hoops: there is a launcher sweet spot, and weak or huge shots miss', () => {
   const g = GAMES.hoops;
   const scores = (power) => {
@@ -187,4 +161,95 @@ test('all games ignore junk input', () => {
     g.step(config, state, DT);
     assert.doesNotThrow(() => JSON.stringify(state));
   }
+});
+
+// --- Card games ----------------------------------------------------------------------
+import { makeBot } from '../public/js/bots.js';
+import { viewFor } from '../public/shared/match.js';
+
+function botVsBot(id, seed, seconds = 400, each) {
+  const g = GAMES[id];
+  const { config, state } = g.create(makeRng(seed));
+  const bots = [makeBot(id, 0), makeBot(id, 1)];
+  for (let i = 0; i < seconds * 60 && !state.over; i++) {
+    for (const s of [0, 1]) bots[s](config, viewFor(g, state, s), DT, (msg) => g.input(config, state, s, msg));
+    g.step(config, state, DT);
+    each?.(state);
+  }
+  return state;
+}
+
+test('blackjack: bot games finish, chips are conserved, roles alternate each hand', () => {
+  for (let seed = 1; seed <= 15; seed++) {
+    const dealers = new Map();
+    const state = botVsBot('blackjack', seed, 400, (s) => {
+      assert.equal(s.chips[0] + s.chips[1], 1000);
+      dealers.set(s.hand, s.dealer);
+    });
+    assert.ok(state.over, `seed ${seed} finished`);
+    assert.notEqual(dealers.get(1), dealers.get(2));
+    assert.equal(dealers.get(1), dealers.get(3));
+  }
+});
+
+test('blackjack: the hole card and the deck never reach the players', () => {
+  const g = GAMES.blackjack;
+  const { config, state } = g.create(makeRng(3));
+  g.input(config, state, state.player, { type: 'bet', amount: 50 });
+  for (const seat of [0, 1]) {
+    const v = JSON.parse(JSON.stringify(viewFor(g, state, seat)));
+    assert.equal(v._deck, undefined);
+    const hole = v.cards.dealer[1];
+    assert.equal(hole.down, true);
+    assert.equal(hole.r, undefined, 'rank hidden');
+  }
+  // Only the player may act in the player phase; dealer inputs are ignored.
+  g.step(config, state, 2);
+  if (state.phase === 'player') {
+    const n = state.cards.player.length;
+    g.input(config, state, state.dealer, { type: 'hit' });
+    assert.equal(state.cards.player.length, n);
+  }
+});
+
+test('snap: correct snaps score, wrong snaps cost a point and lock you out', () => {
+  const g = GAMES.snap;
+  const { config, state } = g.create(makeRng(4));
+  state.pile = [{ id: 901, r: 5, s: 0 }, { id: 902, r: 9, s: 1 }];
+  state.match = false;
+  state.score = [2, 0];
+  g.input(config, state, 0, { type: 'snap' });
+  assert.equal(state.score[0], 1);
+  assert.ok(state.lockout[0] > 0);
+  g.input(config, state, 0, { type: 'snap' }); // locked out: ignored
+  assert.equal(state.score[0], 1);
+  state.pile.push({ id: 903, r: 9, s: 2 });
+  state.match = true;
+  g.input(config, state, 1, { type: 'snap' });
+  assert.equal(state.score[1], 1);
+  const end = botVsBot('snap', 5, 60);
+  assert.ok(end.over);
+});
+
+test('bluff: you never see your own card before showdown; chips are conserved', () => {
+  const g = GAMES.bluff;
+  const { config, state } = g.create(makeRng(6));
+  for (const seat of [0, 1]) {
+    const v = JSON.parse(JSON.stringify(viewFor(g, state, seat)));
+    assert.equal(v.cards[seat].down, true);
+    assert.equal(v.cards[seat].r, undefined);
+    assert.ok(v.cards[1 - seat].r >= 1, 'opponent card visible');
+  }
+  for (let seed = 1; seed <= 15; seed++) {
+    const s = botVsBot('bluff', seed, 200, (st) => assert.equal(st.chips[0] + st.chips[1] + st.pot, 20));
+    assert.ok(s.over);
+  }
+  // Fold hands the pot over.
+  const t = g.create(makeRng(7));
+  g.step(t.config, t.state, 2);
+  const actor = t.state.toAct;
+  g.input(t.config, t.state, actor, { type: 'bet' });
+  g.input(t.config, t.state, 1 - actor, { type: 'fold' });
+  assert.equal(t.state.result.winner, actor);
+  assert.equal(t.state.chips[actor], 10 - 1 - 2 + 4); // ante, bet, then the 4-chip pot
 });

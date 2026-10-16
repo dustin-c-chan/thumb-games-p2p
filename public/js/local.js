@@ -3,7 +3,7 @@
 // doesn't care which one it is talking to.
 import { GAMES, GAME_IDS } from '../shared/registry.js';
 import { makeRng } from '../shared/rng.js';
-import { snapshot } from '../shared/match.js';
+import { snapshot, viewFor } from '../shared/match.js';
 import { makeBot, BOT_NAMES } from './bots.js';
 
 const COUNTDOWN_MS = 1500;
@@ -38,7 +38,7 @@ export function startLocalMatch({ myName, gameId, onMessage }) {
     emit({ type: 'end', id, winner, reason });
   };
 
-  emit({ type: 'match', id, game: gameId, seat, names, config, state: snapshot(state), startsIn: COUNTDOWN_MS, vsBot: true });
+  emit({ type: 'match', id, game: gameId, seat, names, config, state: snapshot(viewFor(game, state, seat)), startsIn: COUNTDOWN_MS, vsBot: true });
 
   timer = setTimeout(() => {
     if (ended) return;
@@ -49,14 +49,14 @@ export function startLocalMatch({ myName, gameId, onMessage }) {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       try {
-        bot(config, state, dt, (msg) => game.input(config, state, botSeat, msg));
+        bot(config, viewFor(game, state, botSeat), dt, (msg) => game.input(config, state, botSeat, msg));
         game.step(config, state, dt);
       } catch (err) {
         console.error(err);
         finish(null, 'Game error');
         return;
       }
-      emit({ type: 'state', id, state: snapshot(state) });
+      emit({ type: 'state', id, state: snapshot(viewFor(game, state, seat)) });
       if (state.over) finish(state.over.winner, state.over.reason);
     }, 1000 / 60);
   }, COUNTDOWN_MS);

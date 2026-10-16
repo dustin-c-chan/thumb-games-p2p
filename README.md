@@ -9,11 +9,17 @@ a random name like *Swift Otter*.
 
 | Game | How it works | Controls |
 | --- | --- | --- |
+| 🂡 **Blackjack Duel** | One player deals, the other plays; roles swap every hand. The dealer sees the player's total and *chooses* to hit or stand. Player can double; blackjack pays 3:2. 4 hands, 500 chips each, most chips wins. | Tap bet / Hit / Stand / Double |
+| 🃏 **Blind Bluff** | Indian poker: you see your opponent's card but not your own. Check/bet, call/fold; higher card wins (aces high). 5 hands, most chips wins. | Tap Check / Bet / Call / Fold |
+| ⚡ **Snap!** | Cards flip onto a shared pile; when two in a row match, the first to hit SNAP scores. Wrong snaps cost a point. First to 5. | Tap the big SNAP button (lower half) or Space |
 | ♞ **Mini Chess** | Gardner 5×5 chess (K, Q, R, B, N + 5 pawns). Checkmate wins. 30 s per move or a random move is played for you. | Tap a piece, tap a square |
-| 🏒 **Pinball Hockey** | Each player defends a pinball drain with two flippers. Knock the puck between the opponent's flippers. First to 3. | Hold left / right half of the screen (or A/D, ←/→) |
 | 🏀 **Hot Shot Hoops** | Two tabletop arcade basketball machines side by side, in 3D perspective. 3 balls each roll back down the court to your launcher. Most baskets in 45 s wins. | Hold to charge the launcher, release to shoot |
 | ⛳ **Mini Golf** | A randomly generated island hole (rails, logs, bumpers, sand, water hazards), both players putting at the same time. Water costs a stroke. Fewest strokes wins. | Drag back anywhere, release to putt |
 | ✨ **Pachinko Pong** | Pong through a pachinko board: steel balls ricochet off pins while you guard your end with a paddle. Balls past your opponent score for you. First to 7. | Slide your finger left/right (or ←/→) |
+
+### Card game ideas on deck
+
+Shove-or-Fold heads-up Hold'em, Hi-Lo streak race, Crazy Eights duel, Memory Match race.
 
 ## Run it
 
@@ -24,7 +30,7 @@ npm start          # http://localhost:3000
 
 Open it in two browser tabs (or on two phones on the same network) and press PLAY in both.
 
-- `?game=hockey` (or `chess`, `hoops`, `golf`, `pachinko`) on the URL forces a game, handy while developing; both players need it.
+- `?game=blackjack` (or `bluff`, `snap`, `chess`, `hoops`, `golf`, `pachinko`) on the URL forces a game, handy while developing; both players need it.
 - `FORCE_GAME=golf npm start` forces a game server-wide.
 - `PORT=8080 npm start` changes the port. `/healthz` returns online and match counts.
 
@@ -56,9 +62,11 @@ browser ──ws──┐                         ┌──ws── browser
 
 - **Matchmaking:** humans first, bots as a fallback (see above). Seats are random and the game is
   picked at random, avoiding the last two games either player played.
-- **Server-authoritative:** players only send inputs (`flip`, `shoot`, `putt`, `move`). The server
+- **Server-authoritative:** players only send inputs (`shoot`, `putt`, `move`, `hit`…). The server
   runs the simulation at 60 Hz and streams state back, so neither player can cheat and the two
-  screens can't drift apart. Your own hockey flippers are predicted locally so they feel instant.
+  screens can't drift apart. Your own Pachinko Pong paddle is predicted locally so it feels instant.
+- **Hidden information:** card games define `view(state, seat)`, so each player (and each bot) is
+  only ever sent what that seat may see. The deck order and face-down cards never leave the server.
 - **Shared code:** game rules and physics live in `public/shared/games/*.js` as plain ES modules,
   imported by the server (to simulate) and by the browser (for drawing and chess move hints).
 - If a player leaves or disconnects mid-game, the other player wins by forfeit.
@@ -74,12 +82,14 @@ public/js/local.js         In-browser match runner (offline feed)
 public/js/bots.js          Computer opponents for each game (used by the server and offline)
 public/shared/games/*.js   Per-game rules/physics: create(), input(), step()
 public/shared/physics.js   Tiny circle/segment/rect collision helpers
+public/shared/cards.js     Deck, shuffling and card helpers
+public/js/cards.js         Casino table kit: felt, cards with deal/flip animation, chips, buttons
 test/                      node:test suites
 ```
 
 ### Adding a game
 
-1. Create `public/shared/games/<id>.js` exporting `{ id, name, blurb, controls, create(rng), input(config, state, seat, msg), step(config, state, dt) }`.
+1. Create `public/shared/games/<id>.js` exporting `{ id, name, blurb, controls, create(rng), input(config, state, seat, msg), step(config, state, dt) }`, plus `view(state, seat)` if some of the state is secret.
    Set `state.over = { winner: 0 | 1 | null, reason }` when the game ends.
 2. Create `public/js/games/<id>.js` exporting `({ seat, config, names, send }) => ({ render(ctx, state, dt), pointerDown?, pointerMove?, pointerUp?, keyDown?, keyUp? })`.
    The canvas is a 400×600 logical space.
