@@ -4,6 +4,7 @@ import chessClient from './games/chess.js';
 import hockeyClient from './games/hockey.js';
 import hoopsClient from './games/hoops.js';
 import golfClient from './games/golf.js';
+import { startLocalMatch } from './local.js';
 
 const CLIENTS = { chess: chessClient, hockey: hockeyClient, hoops: hoopsClient, golf: golfClient };
 const VIEW_W = 400;
@@ -15,11 +16,15 @@ const ctx = canvas.getContext('2d');
 const overlay = $('overlay');
 
 let ws = null;
+let local = null; // an in-browser match against the computer, when active
 let myName = '';
 let current = null; // { client, state, seat, names, gameId, startsAt, ended }
 let reconnectDelay = 500;
 // `?game=hockey` forces a specific game (handy for testing; both players need it).
-const wantGame = new URLSearchParams(location.search).get('game');
+const params = new URLSearchParams(location.search);
+const wantGame = params.get('game');
+// Offline mode (no server, e.g. a static demo): every match is against the computer.
+const OFFLINE = !!window.THUMB_OFFLINE || params.has('offline');
 
 // ---------------------------------------------------------------------------
 // Screens
@@ -58,6 +63,7 @@ function connect() {
   ws.onclose = () => {
     $('play').disabled = true;
     $('play').textContent = 'Reconnecting…';
+    if (local) return; // a computer match keeps going without the server
     if (current && !current.ended) endCurrent();
     if (document.querySelector('.screen.active')?.id !== 'home') show('home');
     setTimeout(connect, reconnectDelay);
@@ -66,6 +72,11 @@ function connect() {
 }
 
 function send(msg) {
+  if (local && !local.ended) {
+    if (msg.type === 'input') local.input(msg.input);
+    else if (msg.type === 'leave') local.leave();
+    return;
+  }
   if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
 }
 
@@ -99,8 +110,16 @@ function onMessage(msg) {
 
 function findMatch() {
   if (current) endCurrent();
+  local = null;
+  if (OFFLINE) { playComputer(); return; }
   send({ type: 'find', game: wantGame || undefined });
   show('search');
+}
+
+function playComputer() {
+  if (current) endCurrent();
+  send({ type: 'cancel' });
+  local = startLocalMatch({ myName, gameId: wantGame, onMessage });
 }
 
 function startMatch(msg) {
@@ -154,7 +173,7 @@ function showResult(msg) {
     </div>
     <button class="ghost-btn" id="home-btn">Home</button>`);
   $('again').onclick = findMatch;
-  $('home-btn').onclick = () => { endCurrent(); show('home'); };
+  $('home-btn').onclick = () => { endCurrent(); local = null; show('home'); };
 }
 
 function endCurrent() {
@@ -166,10 +185,20 @@ function endCurrent() {
 
 $('play').onclick = findMatch;
 $('cancel').onclick = () => { send({ type: 'cancel' }); show('home'); };
+$('bot').onclick = playComputer;
+// Leaving mid-game counts as a loss, so it takes two taps.
+let leaveArmed = 0;
 $('leave').onclick = () => {
-  if (current && !current.ended && !confirm('Leave this match? It counts as a loss.')) return;
+  if (current && !current.ended && performance.now() - leaveArmed > 2500) {
+    leaveArmed = performance.now();
+    $('leave').textContent = 'Tap again to forfeit';
+    setTimeout(() => { $('leave').textContent = '✕'; }, 2500);
+    return;
+  }
+  $('leave').textContent = '✕';
   send({ type: 'leave' });
   endCurrent();
+  local = null;
   show('home');
 };
 
@@ -229,4 +258,15 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
-connect();
+if (OFFLINE) {
+  const ADJ = ['Swift', 'Sneaky', 'Lucky', 'Mighty', 'Fuzzy', 'Turbo', 'Cosmic', 'Jolly'];
+  const ANIMAL = ['Otter', 'Panda', 'Falcon', 'Llama', 'Gecko', 'Badger', 'Koala', 'Moose'];
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  myName = `${pick(ADJ)} ${pick(ANIMAL)}`;
+  $('my-name').textContent = myName;
+  $('play').disabled = false;
+  $('play').textContent = 'PLAY';
+  $('stats').textContent = 'Demo mode: you play the computer. Head-to-head needs the game server.';
+} else {
+  connect();
+}

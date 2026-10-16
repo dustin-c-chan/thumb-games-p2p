@@ -29,6 +29,13 @@ Open it in two browser tabs (or on two phones on the same network) and press PLA
 npm test           # game logic + an end-to-end two-player WebSocket test
 ```
 
+### No opponent? No server?
+
+- On the "Finding an opponent…" screen, **Play the computer instead** starts a match against a bot
+  right away. The match runs in your browser with the same game code.
+- `?offline` on the URL (or `window.THUMB_OFFLINE = true`) turns the client into a pure static page
+  where every match is against the computer. No server is needed for that mode.
+
 ## How it works
 
 ```
@@ -54,6 +61,8 @@ server.js                  HTTP static server + WebSocket matchmaking + match lo
 public/index.html          Single page: home → searching → game
 public/js/main.js          Connection, screens, canvas scaling, input routing, render loop
 public/js/games/*.js       Per-game renderer + touch/keyboard controls
+public/js/local.js         In-browser match runner (vs computer)
+public/js/bots.js          Computer opponents for each game
 public/shared/games/*.js   Per-game rules/physics: create(), input(), step()
 public/shared/physics.js   Tiny circle/segment/rect collision helpers
 test/                      node:test suites
@@ -72,3 +81,8 @@ test/                      node:test suites
 It's a single Node process with no database. Any host that supports WebSockets works (Render,
 Fly.io, Railway, a VPS…): run `npm start` and set `PORT`. Behind HTTPS the client switches to
 `wss://` automatically.
+
+**Render, from a phone:** sign in at [render.com](https://render.com) with GitHub, tap
+**New → Blueprint**, pick this repo and branch, and accept. `render.yaml` sets everything up. You
+get a public `https://thumb-games-….onrender.com` URL to share. (Free instances sleep after
+~15 minutes idle, so the first visit after a nap takes ~30 s to wake up.)

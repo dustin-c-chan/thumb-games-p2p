@@ -48,7 +48,7 @@ h2 { margin: 0; }
 
 #game.screen { padding: 0; gap: 0; justify-content: flex-start; }
 .bar { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 12px; padding-top: max(8px, env(safe-area-inset-top)); background: var(--panel); }
-.bar .title { font-weight: 800; }
+.bar .title { font-weight: 800; white-space: nowrap; }
 .bar .vs { margin-left: auto; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bar .vs .y { color: var(--you); }
 .bar .vs .t { color: var(--them); }

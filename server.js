@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { GAMES, GAME_IDS } from './public/shared/registry.js';
 import { makeRng } from './public/shared/rng.js';
+import { snapshot, stateReplacer } from './public/shared/match.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
@@ -93,13 +94,6 @@ function chooseGame(a, b, forced) {
   return pick(fresh.length ? fresh : GAME_IDS);
 }
 
-// Round floats and drop private `_` keys to keep the per-tick payload small.
-function stateReplacer(key, value) {
-  if (key.startsWith('_')) return undefined;
-  if (typeof value === 'number' && !Number.isInteger(value)) return Math.round(value * 100) / 100;
-  return value;
-}
-
 function startMatch(a, b) {
   // Randomize who gets seat 0 (moves first in chess, etc.).
   const players = Math.random() < 0.5 ? [a, b] : [b, a];
@@ -115,7 +109,7 @@ function startMatch(a, b) {
     ws.lastGame = gameId;
   });
   const names = players.map((p) => p.name);
-  const initial = JSON.parse(JSON.stringify(state, stateReplacer));
+  const initial = snapshot(state);
   players.forEach((ws, seat) =>
     send(ws, { type: 'match', game: gameId, seat, names, config, state: initial, startsIn: COUNTDOWN_MS }));
   console.log(`[match ${match.id}] ${gameId}: ${names[0]} vs ${names[1]}`);

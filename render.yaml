@@ -1,0 +1,10 @@
+# One-click deploy on Render (free plan supports WebSockets).
+# Render dashboard → New → Blueprint → pick this repo.
+services:
+  - type: web
+    name: thumb-games
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
