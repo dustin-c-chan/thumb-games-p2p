@@ -1,7 +1,9 @@
 # 👍 Thumb Games
 
-Open the page, tap **PLAY**, and you're instantly matched with another person in a random
-head-to-head mini game. No sign up, no accounts — you get a random name like *Swift Otter*.
+TikTok for mini games. Tap **PLAY** once, then **swipe up** for the next head-to-head game.
+Real players are matched first; when it's quiet you play a bot instantly, and you get a
+"🟢 a real player is ready" nudge the moment someone shows up. No sign up, no accounts. You get
+a random name like *Swift Otter*.
 
 ## Games
 
@@ -30,12 +32,18 @@ Open it in two browser tabs (or on two phones on the same network) and press PLA
 npm test           # game logic + an end-to-end two-player WebSocket test
 ```
 
-### No opponent? No server?
+### The feed and matchmaking
 
-- On the "Finding an opponent…" screen, **Play the computer instead** starts a match against a bot
-  right away. The match runs in your browser with the same game code.
+- Swipe up anywhere except the game area itself (the header, the swipe handle, intro and result
+  cards), use the mouse wheel, or press **N**. Results auto-advance after 5 s.
+- When you swipe, the server pairs you with anyone else who just swiped. If nobody is waiting:
+  - if other people are in the feed playing bots, you wait up to `HUMAN_GRACE_MS` (3.5 s) while
+    they see a "real player is ready" banner, and a bot match starts if nobody swipes in time;
+  - if you're alone, a bot match starts after `SOLO_GRACE_MS` (0.5 s).
+- Bot matches run on the server, so you stay matchable while you play one. Skipping or leaving a
+  game against a real person counts as a loss (and a win for them).
 - `?offline` on the URL (or `window.THUMB_OFFLINE = true`) turns the client into a pure static page
-  where every match is against the computer. No server is needed for that mode.
+  where the feed runs in the browser against bots. No server is needed for that mode.
 
 ## How it works
 
@@ -46,8 +54,8 @@ browser ──ws──┐                         ┌──ws── browser
               └─ game.step() loop ──────┘
 ```
 
-- **Matchmaking:** a FIFO queue. When two players are waiting they're paired, given random seats,
-  and a random game is picked (avoiding whatever either of them just played).
+- **Matchmaking:** humans first, bots as a fallback (see above). Seats are random and the game is
+  picked at random, avoiding the last two games either player played.
 - **Server-authoritative:** players only send inputs (`flip`, `shoot`, `putt`, `move`). The server
   runs the simulation at 60 Hz and streams state back, so neither player can cheat and the two
   screens can't drift apart. Your own hockey flippers are predicted locally so they feel instant.
@@ -59,11 +67,11 @@ browser ──ws──┐                         ┌──ws── browser
 
 ```
 server.js                  HTTP static server + WebSocket matchmaking + match loop
-public/index.html          Single page: home → searching → game
-public/js/main.js          Connection, screens, canvas scaling, input routing, render loop
+public/index.html          Single page: home → the feed
+public/js/main.js          Feed: connection, swipe gestures, slide transitions, canvas, input, render loop
 public/js/games/*.js       Per-game renderer + touch/keyboard controls
-public/js/local.js         In-browser match runner (vs computer)
-public/js/bots.js          Computer opponents for each game
+public/js/local.js         In-browser match runner (offline feed)
+public/js/bots.js          Computer opponents for each game (used by the server and offline)
 public/shared/games/*.js   Per-game rules/physics: create(), input(), step()
 public/shared/physics.js   Tiny circle/segment/rect collision helpers
 test/                      node:test suites

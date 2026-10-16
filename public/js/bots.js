@@ -143,5 +143,7 @@ function pachinkoBot(seat) {
   };
 }
 
+export const BOT_NAMES = ['Robo Otter', 'Circuit Panda', 'Byte Badger', 'Pixel Moose', 'Turbo Toaster', 'Sir Beeps', 'Glitch Gecko', 'Unit 7'];
+
 const BOTS = { chess: chessBot, hockey: hockeyBot, hoops: hoopsBot, golf: golfBot, pachinko: pachinkoBot };
 export const makeBot = (gameId, seat) => BOTS[gameId](seat);

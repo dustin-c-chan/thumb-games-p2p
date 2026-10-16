@@ -16,7 +16,7 @@
       <div class="brand">
         <div class="logo">👍</div>
         <h1>Thumb Games</h1>
-        <p class="tag">Tap play. Get a random mini game. Beat a real person.</p>
+        <p class="tag">Swipe through quick head-to-head mini games. Real players first, bots when it’s quiet.</p>
       </div>
       <button id="play" class="big-btn" disabled>Connecting…</button>
       <p class="you">You are <b id="my-name">…</b></p>
@@ -30,26 +30,21 @@
       <p class="stats" id="stats"></p>
     </section>
 
-    <!-- Waiting for an opponent. -->
-    <section id="search" class="screen">
-      <div class="spinner"></div>
-      <h2>Finding an opponent…</h2>
-      <p class="stats" id="search-stats"></p>
-      <p class="hint">Tip: open this page in a second tab or on a friend’s phone to test instantly.</p>
-      <button id="bot" class="ghost-btn">Play the computer instead</button>
-      <button id="cancel" class="ghost-btn">Cancel</button>
-    </section>
-
-    <!-- In a match. -->
+    <!-- The feed: one game card at a time, swipe up for the next. -->
     <section id="game" class="screen">
       <header class="bar">
-        <button id="leave" class="ghost-btn small" title="Leave match">✕</button>
+        <button id="leave" class="ghost-btn small" title="Back to home">✕</button>
         <div class="title" id="game-title"></div>
+        <div class="record" id="record" title="Wins–losses this session">0–0</div>
         <div class="vs" id="vs"></div>
       </header>
       <div id="stage">
-        <canvas id="canvas"></canvas>
-        <div id="overlay" class="overlay hidden"></div>
+        <button id="banner" class="banner hidden">🟢 A real player is ready. Swipe up!</button>
+        <div id="card">
+          <canvas id="canvas"></canvas>
+          <div id="overlay" class="overlay hidden"></div>
+        </div>
+        <button id="handle" class="handle"><span class="chev">︿</span> Swipe up for next game</button>
       </div>
     </section>
   </main>

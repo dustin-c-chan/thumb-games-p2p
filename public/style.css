@@ -54,10 +54,32 @@ h2 { margin: 0; }
 .bar .vs .y { color: var(--you); }
 .bar .vs .t { color: var(--them); }
 
-#stage { position: relative; flex: 1; width: 100%; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#game.screen { touch-action: none; }
+#stage { position: relative; flex: 1; width: 100%; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+#card { position: relative; will-change: transform; }
 #canvas { display: block; touch-action: none; border-radius: 10px; }
+.ghost { position: absolute; border-radius: 10px; pointer-events: none; z-index: 3; }
+.bar .record { flex: none; white-space: nowrap; font-size: 12px; font-weight: 800; color: var(--accent); background: #2a2640; border-radius: 999px; padding: 3px 9px; font-variant-numeric: tabular-nums; }
 
-.overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; background: rgba(10, 9, 16, .72); backdrop-filter: blur(3px); }
+.handle { flex: none; height: 44px; margin-top: 2px; font: inherit; font-size: 13px; font-weight: 700; color: var(--muted); background: transparent; border: 0; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 0 18px; }
+.handle .chev { font-size: 18px; color: var(--accent); animation: nudge 1.4s ease-in-out infinite; }
+@keyframes nudge { 0%, 100% { transform: translateY(2px); } 50% { transform: translateY(-4px); } }
+
+.banner { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5; font: inherit; font-size: 14px; font-weight: 800; color: #062b12; background: var(--good); border: 0; border-radius: 999px; padding: 9px 16px; box-shadow: 0 6px 24px rgba(108, 240, 143, .45); cursor: pointer; white-space: nowrap; animation: pulse 1.2s ease-in-out infinite; }
+.banner.hidden { display: none; }
+@keyframes pulse { 50% { box-shadow: 0 6px 34px rgba(108, 240, 143, .8); } }
+
+.overlay .slot { font-size: 64px; line-height: 1; }
+.overlay .tagline { font-size: 13px; color: var(--muted); margin: 0; }
+.overlay .tagline.human { color: var(--good); font-weight: 800; }
+.overlay .swipe-hint { margin-top: 10px; font-weight: 800; color: var(--accent); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.overlay .swipe-hint .chev { font-size: 26px; animation: nudge 1.4s ease-in-out infinite; }
+.overlay .autobar { width: 160px; height: 4px; border-radius: 2px; background: #2c2942; overflow: hidden; }
+.overlay .autobar i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: left; animation: drain linear forwards; }
+@keyframes drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .handle .chev, .overlay .swipe-hint .chev, .banner { animation: none; } }
+
+.overlay { position: absolute; inset: 0; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; background: rgba(10, 9, 16, .72); backdrop-filter: blur(3px); }
 .overlay.hidden { display: none; }
 .overlay .kicker { color: var(--muted); text-transform: uppercase; letter-spacing: .15em; font-size: 12px; }
 .overlay .name { font-size: clamp(30px, 9vw, 44px); font-weight: 900; color: var(--accent); }

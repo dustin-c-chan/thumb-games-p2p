@@ -4,10 +4,9 @@
 import { GAMES, GAME_IDS } from '../shared/registry.js';
 import { makeRng } from '../shared/rng.js';
 import { snapshot } from '../shared/match.js';
-import { makeBot } from './bots.js';
+import { makeBot, BOT_NAMES } from './bots.js';
 
-const COUNTDOWN_MS = 3000;
-const BOT_NAMES = ['Robo Otter', 'Circuit Panda', 'Byte Badger', 'Pixel Moose', 'Turbo Toaster', 'Sir Beeps'];
+const COUNTDOWN_MS = 1500;
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 let lastGame = null;
 
@@ -28,6 +27,7 @@ export function startLocalMatch({ myName, gameId, onMessage }) {
   let running = false;
   let ended = false;
   let timer = null;
+  const id = `local-${Math.random().toString(36).slice(2, 8)}`;
 
   const emit = (msg) => onMessage(msg);
   const finish = (winner, reason) => {
@@ -35,10 +35,10 @@ export function startLocalMatch({ myName, gameId, onMessage }) {
     ended = true;
     clearTimeout(timer);
     clearInterval(timer);
-    emit({ type: 'end', winner, reason });
+    emit({ type: 'end', id, winner, reason });
   };
 
-  emit({ type: 'match', game: gameId, seat, names, config, state: snapshot(state), startsIn: COUNTDOWN_MS, vsComputer: true });
+  emit({ type: 'match', id, game: gameId, seat, names, config, state: snapshot(state), startsIn: COUNTDOWN_MS, vsBot: true });
 
   timer = setTimeout(() => {
     if (ended) return;
@@ -56,14 +56,15 @@ export function startLocalMatch({ myName, gameId, onMessage }) {
         finish(null, 'Game error');
         return;
       }
-      emit({ type: 'state', state: snapshot(state) });
+      emit({ type: 'state', id, state: snapshot(state) });
       if (state.over) finish(state.over.winner, state.over.reason);
     }, 1000 / 60);
   }, COUNTDOWN_MS);
 
   return {
     input(msg) { if (running && !ended) game.input(config, state, seat, msg); },
-    leave() { finish(botSeat, 'You left'); },
+    // Quietly stop (used when swiping away: no result screen for a game you skipped).
+    stop() { ended = true; clearTimeout(timer); clearInterval(timer); },
     get ended() { return ended; },
   };
 }
